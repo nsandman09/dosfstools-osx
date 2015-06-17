@@ -1574,7 +1574,7 @@ int main(int argc, char **argv)
 	}
 
 	if (!create) {
-	    printf("test1\n");
+	    printf("Writing to %s...\n", device_name);
             check_mount(device_name);
             cblocks = count_blocks(device_name, &orphaned_sectors);	/*  Have a look and see! */
         }
