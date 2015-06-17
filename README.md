@@ -1,39 +1,39 @@
-# dosfstools on OSX
+# dosfstools for OSX
 
-OSX 10.9 Maveric not exist mkfs.vfat.
+OSX 10.9 Mavericks does not have mkfs.vfat.
  
-[dosfstools](http://daniel-baumann.ch/software/dosfstools/) - now orphaned Linux version utilities for making and checking MS-DOS FAT filesystems.
+[dosfstools](http://daniel-baumann.ch/software/dosfstools/) are now-orphaned Linux version utilities for making and checking MS-DOS FAT filesystems.
 
-OSX users using diskfstool? hdutil and hdiutil.
+###Problems
 
-**Problems**
-
-1. Not worked *ioctl(dev, HDIO_GETGEO, &geometry)* unable to get drive geometry
+1. *ioctl(dev, HDIO_GETGEO, &geometry)* unable to get drive geometry
 2. geometry.sectors and geometry.heads you may get from nondirect calculation (sample in the [diskdev-cmds] (http://www.opensource.apple.com/source/diskdev_cmds/diskdev_cmds-557.3.1/)), but geometry.start needed for set hidden_sectros not available
 
-**Porting**
+###Porting
 
-1. Based on last version dosfstools 3.0.26
-2. Add some linux headers
-3. Remove atari support
-4. Remove fatlabel utility
-5. mkfs.fat not worked on real drives - only with images -C option and loop devices
+1. Based on the last version of dosfstools (3.0.26)
+2. Add some Linux headers
+3. Removed Atari FAT support
+4. Removed fatlabel utility (for now)
 
-**Install with homebrew**
+###Install with homebrew
 
-    $brew create https://github.com/sv99/dosfstools-osx.git
+```
+$ brew create https://github.com/sv99/dosfstools-osx.git
+```
 
 ```ruby
 require "formula"
 
 class Dosfstools < Formula
-  homepage "https://github.com/sv99/dosfstools-osx"
-  url "https://github.com/sv99/dosfstools-osx.git"
-  sha1 ""
+  url "https://github.com/nsandman09/dosfstools-osx/archive/8fd9e494d96d10ccc9820c15a04169d00b89bd01.zip"
+  homepage "https://github.com/nsandman09/dosfstools-osx"
+  sha256 "8036284f6684fc0f8127b4a0915c7a0617356851ce4f23fb7d2745b188a89dd4"
 
   def install
-    system "make", "install"   
+    system "make"
+    system "make", "install"
   end
-
 end
 ```
+
