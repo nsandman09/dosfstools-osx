@@ -41,15 +41,10 @@
    - New options -A, -S, -C
    - Support for filesystems > 2GB
    - FAT32 support * mkfs.fat.c
-*/
 
 /* Include the header files */
 
 #include "version.h"
-
-#define MAX_RESERVED    0xFFFF
-#define HD_DRIVE_NUMBER 0x80  /* Boot off first hard drive */
-#define FD_DRIVE_NUMBER 0x00  /* Boot off first floppy drive */
 
 #include <signal.h>
 #include <string.h>
@@ -258,8 +253,6 @@ char dummy_boot_code[BOOTCODE_SIZE] = "\x0e"	/* push cs */
 
 /* Global variables - the root of all evil :-) - see these and weep! */
 
-static char *template_boot_code;  /* Variable to store a full template boot sector in */
-static int use_template = 0;
 static char *program_name = "mkfs.fat";	/* Name of the program */
 static char *device_name = NULL;	/* Name of the device on which to create the filesystem */
 static int check = FALSE;	/* Default to no readablity checking */
@@ -772,13 +765,6 @@ static void setup_tables(void)
     vi->volume_id[2] = (unsigned char)((volume_id & 0x00ff0000) >> 16);
     vi->volume_id[3] = (unsigned char)(volume_id >> 24);
     
-    if (bs.media == 0xf8) {
-       vi->drive_number = HD_DRIVE_NUMBER;  /* Set bios drive number to 80h */
-   }
-   else {
-       vi->drive_number = FD_DRIVE_NUMBER;  /* Set bios drive number to 00h */
-   }
-
     memcpy(vi->volume_label, volume_name, 11);
 
     memcpy(bs.boot_jump, dummy_boot_jump, 3);
@@ -815,8 +801,8 @@ static void setup_tables(void)
 	printf("Using %d reserved sectors\n", reserved_sectors);
     bs.fats = (char)nr_fats;
     if ( size_fat == 32)
-	//bs.hidden = htole32(hidden_sectors);
-      bs.hidden = bs.secs_track;
+	bs.hidden = htole32(hidden_sectors);
+
     num_sectors =
 	(long long)(blocks * BLOCK_SIZE / sector_size) + orphaned_sectors;
 
@@ -1240,32 +1226,6 @@ static void write_tables(void)
      * dir area on FAT12/16, and the first cluster on FAT32. */
     writebuf((char *)root_dir, size_root_dir, "root directory");
 
-    if (use_template == 1) {
-     /* dupe template into reserved sectors */
-     seekto( 0, "Start of partition" );
-     if (size_fat == 32) {
-       writebuf( template_boot_code, 3, "backup jmpBoot" );
-       seekto( 0x5a, "sector 1 boot area" );
-       writebuf( template_boot_code+0x5a, 420, "sector 1 boot area" );
-       seekto( 512*2, "third sector" );
-       if (backup_boot != 0) {
-         writebuf( template_boot_code+512*2, backup_boot*sector_size - 512*2, "data to backup boot" );
-   seekto( backup_boot*sector_size, "backup boot sector" );
-         writebuf( template_boot_code, 3, "backup jmpBoot" );
-   seekto( backup_boot*sector_size+0x5a, "backup boot sector boot area" );
-         writebuf( template_boot_code+0x5a, 420, "backup boot sector boot area" );
-         seekto( (backup_boot+2)*sector_size, "sector following backup code" );
-         writebuf( template_boot_code+(backup_boot+2)*sector_size, (reserved_sectors-backup_boot-2)*512, "remaining data" );
-       } else {
-         writebuf( template_boot_code+512*2, (reserved_sectors-2)*512, "remaining data" );
-       }
-     } else {
-       writebuf( template_boot_code, 3, "jmpBoot" );
-       seekto( 0x3e, "sector 1 boot area" );
-       writebuf( template_boot_code+0x3e, 448, "boot code" );
-     }
-   }
-
     if (blank_sector)
 	free(blank_sector);
     if (info_sector)
@@ -1280,7 +1240,7 @@ static void usage(void)
 {
     fatal_error("\
 Usage: mkfs.fat [-a][-c][-C][-v][-I][-l bad-block-file][-b backup-boot-sector]\n\
-       [-m boot-msg-file][-n volume-name][-i volume-id][-B bootcode]\n\
+       [-m boot-msg-file][-n volume-name][-i volume-id]\n\
        [-s sectors-per-cluster][-S logical-sector-size][-f number-of-FATs]\n\
        [-h hidden-sectors][-F fat-size][-r root-dir-entries][-R reserved-sectors]\n\
        [-M FAT-media-byte][-D drive_number]\n\
@@ -1315,7 +1275,7 @@ int main(int argc, char **argv)
     
     printf("mkfs.fat " VERSION " (" VERSION_DATE ")\n");
 
-    while ((c = getopt(argc, argv, "ab:cCf:D:F:Ii:l:m:M:n:r:R:B:s:S:h:v")) != EOF)
+    while ((c = getopt(argc, argv, "ab:cCf:D:F:Ii:l:m:M:n:r:R:s:S:h:v")) != EOF)
 	/* Scan the command line for options */
 	switch (c) {
 	case 'a':		/* a : skip alignment */
@@ -1390,51 +1350,6 @@ int main(int argc, char **argv)
 	    listfile = optarg;
 	    malloc_entire_fat = TRUE;	/* Need to be able to mark clusters bad */
 	    break;
-
-  case 'B':         /* B : read in bootcode */
-         if ( strcmp(optarg, "-") )
-     {
-       msgfile = fopen(optarg, "r");
-       if ( !msgfile )
-         perror(optarg);
-     }
-   else
-     msgfile = stdin;
- 
-   if ( msgfile )
-     {
-             if (!(template_boot_code = malloc( MAX_RESERVED )))
-                 die( "Out of memory" );
-       /* The template boot sector including reserved must not be > 65535 */
-             use_template = 1;
-       i = 0;
-       do
-         {
-     ch = getc(msgfile);
-     switch (ch)
-       {
-       case EOF:
-         break;
- 
-       default:
-         template_boot_code[i++] = ch; /* Store character */
-         break;
-       }
-         }
-       while ( ch != EOF && i < MAX_RESERVED );
-       ch = getc(msgfile); /* find out if we're at EOF */
- 
-       /* Fill up with zeros */
-       while( i < MAX_RESERVED )
-     template_boot_code[i++] = '\0';
-       
-       if ( ch != EOF )
-         printf ("Warning: template too long; truncated after %d bytes\n", i);
-       
-       if ( msgfile != stdin )
-         fclose(msgfile);
-     }
-   break;
 
 	case 'm':		/* m : Set boot message */
 	    if (strcmp(optarg, "-")) {

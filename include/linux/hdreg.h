@@ -6,7 +6,7 @@
 #endif
 
 /*
- * Command Header sizes for IOCTL commands
+ * hdreg.h
  */
 
 #define HDIO_DRIVE_CMD_HDR_SIZE		(4 * sizeof(__u8))
