@@ -19,7 +19,7 @@ OSX 10.9 Mavericks does not have mkfs.vfat.
 ###Install with homebrew
 
 ```
-$ brew create https://github.com/sv99/dosfstools-osx.git
+$ brew create dosfstools
 ```
 
 ```ruby
